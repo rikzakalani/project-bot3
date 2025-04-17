@@ -2,15 +2,24 @@ require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 const { fetchAllCoinsWithDelay } = require('./coingecko');
 const sqlite3 = require('sqlite3').verbose();
+const express = require('express'); // <- Tambahan
+const app = express(); // <- Tambahan
 
 const token = process.env.BOT_TOKEN;
+
+if (!token) {
+  console.error("❌ BOT_TOKEN belum diatur di .env atau environment variable");
+  process.exit(1);
+}
+
 const bot = new TelegramBot(token, { polling: true });
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// /start
+// ========== Bot Commands ==========
+
 bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
   const message = `
@@ -20,14 +29,12 @@ Gunakan perintah:
 /update - Mengambil dan menyimpan data pasar crypto terbaru dari CoinGecko.
 /uptrend - Melihat koin yang sedang naik daun berdasarkan data pasar.
 /topath - Melihat koin yang sedang naik ath berdasarkan data pasar.
-/search [nama/simbol] - Mencari koin berdasarkan nama atau simbol.
 
 📡 Sumber data: CoinGecko
   `;
   await bot.sendMessage(chatId, message, { parse_mode: "Markdown" });
 });
 
-// /update
 bot.onText(/\/update/, async (msg) => {
   const chatId = msg.chat.id;
   await bot.sendMessage(chatId, "⏳ Mengambil data dari CoinGecko...");
@@ -40,11 +47,10 @@ bot.onText(/\/update/, async (msg) => {
   }
 });
 
-// /uptrend
 bot.onText(/\/uptrend/, async (msg) => {
   const chatId = msg.chat.id;
 
-  const db = new sqlite3.Database('./data/coins.db')
+  const db = new sqlite3.Database('./data/coins.db'); // <-- Update path (rekomendasi folder data/)
   const query = `
     SELECT name, symbol, current_price, total_volume,
            price_change_percentage_1h,
@@ -84,7 +90,7 @@ bot.onText(/\/uptrend/, async (msg) => {
 bot.onText(/\/topath/, async (msg) => {
   const chatId = msg.chat.id;
 
-  const db = new sqlite3.Database('./data/coins.db')
+  const db = new sqlite3.Database('./data/coins.db'); // <-- Update path
   const query = `
     SELECT name, symbol, current_price, market_cap, total_volume,
            circulating_supply, max_supply,
@@ -125,41 +131,12 @@ bot.onText(/\/topath/, async (msg) => {
   });
 });
 
-bot.onText(/\/search (.+)/, async (msg, match) => {
-  const chatId = msg.chat.id;
-  const searchQuery = match[1].toLowerCase(); // Ambil input pengguna dan ubah ke huruf kecil
+// ========== Dummy HTTP Server for Koyeb Route ==========
+const PORT = process.env.PORT || 3000;
+app.get('/', (req, res) => {
+  res.send('🤖 CryptoBot is running.');
+});
 
-  const db = new sqlite3.Database('./data/coins.db')
-  const query = `
-    SELECT name, symbol, current_price, market_cap, total_volume,
-           price_change_percentage_1h,
-           price_change_percentage_24h,
-           ath, ath_change_percentage
-    FROM coins
-    WHERE LOWER(name) LIKE ? OR LOWER(symbol) LIKE ?
-    LIMIT 10
-  `;
-
-  db.all(query, [`%${searchQuery}%`, `%${searchQuery}%`], async (err, rows) => {
-    if (err) {
-      console.error(err);
-      return bot.sendMessage(chatId, "❌ Gagal mencari koin di database.");
-    }
-
-    if (!rows.length) {
-      return bot.sendMessage(chatId, `⚠️ Tidak ada koin yang ditemukan untuk pencarian: *${searchQuery}*`, { parse_mode: "Markdown" });
-    }
-
-    let text = `🔍 *Hasil Pencarian untuk:* \`${searchQuery}\`\n\n`;
-
-    rows.forEach((coin, i) => {
-      text += `${i + 1}. *${coin.name}* (${coin.symbol})\n`;
-      text += `💰 Harga: $${coin.current_price ? coin.current_price.toLocaleString() : 'N/A'}\n`;
-      text += `💹 Market Cap: $${coin.market_cap ? coin.market_cap.toLocaleString() : 'N/A'} | Vol: $${coin.total_volume ? coin.total_volume.toLocaleString() : 'N/A'}\n`;
-      text += `📊 1h: ${coin.price_change_percentage_1h ? coin.price_change_percentage_1h.toFixed(2) : 'N/A'}% | 24h: ${coin.price_change_percentage_24h ? coin.price_change_percentage_24h.toFixed(2) : 'N/A'}%\n`;
-      text += `🏔️ ATH: $${coin.ath ? coin.ath.toLocaleString() : 'N/A'} (${coin.ath_change_percentage ? coin.ath_change_percentage.toFixed(2) : 'N/A'}%)\n\n`;
-    });
-
-    await bot.sendMessage(chatId, text, { parse_mode: "Markdown" });
-  });
+app.listen(PORT, () => {
+  console.log(`🌐 HTTP server running at http://localhost:${PORT}`);
 });
