@@ -44,7 +44,7 @@ bot.onText(/\/update/, async (msg) => {
 bot.onText(/\/uptrend/, async (msg) => {
   const chatId = msg.chat.id;
 
-  const db = new sqlite3.Database('./coins.db');
+  const db = new sqlite3.Database('./data/coins.db')
   const query = `
     SELECT name, symbol, current_price, total_volume,
            price_change_percentage_1h,
