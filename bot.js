@@ -84,7 +84,7 @@ bot.onText(/\/uptrend/, async (msg) => {
 bot.onText(/\/topath/, async (msg) => {
   const chatId = msg.chat.id;
 
-  const db = new sqlite3.Database('./coins.db');
+  const db = new sqlite3.Database('./data/coins.db')
   const query = `
     SELECT name, symbol, current_price, market_cap, total_volume,
            circulating_supply, max_supply,
@@ -129,7 +129,7 @@ bot.onText(/\/search (.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
   const searchQuery = match[1].toLowerCase(); // Ambil input pengguna dan ubah ke huruf kecil
 
-  const db = new sqlite3.Database('./coins.db');
+  const db = new sqlite3.Database('./data/coins.db')
   const query = `
     SELECT name, symbol, current_price, market_cap, total_volume,
            price_change_percentage_1h,
